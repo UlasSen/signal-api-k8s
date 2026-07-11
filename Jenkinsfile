@@ -14,16 +14,21 @@ pipeline {
             }
         }
         
-        stage('Minikube Image Load') {
+        stage('Minikube Injection (SRE Hack)') {
             steps {
-                sh 'minikube image load signal-api'
+                // İmajı diske kaydedip doğrudan Minikube konteynerinin içine enjekte ediyoruz
+                sh '''
+                    docker save signal-api:latest > image.tar
+                    docker exec -i minikube docker load < image.tar || docker exec -i minikube ctr -n k8s.io images import - < image.tar
+                '''
             }
         }
         
-        stage('Kubernetes Deploy') {
+        stage('Kubernetes Deploy (SRE Hack)') {
             steps {
-                sh 'kubectl apply -f deployment.yaml'
-                sh 'kubectl apply -f service.yaml'
+                // YAML dosyalarını okutup doğrudan Minikube içindeki kubectl'e fırlatıyoruz
+                sh 'cat deployment.yaml | docker exec -i minikube kubectl apply -f -'
+                sh 'cat service.yaml | docker exec -i minikube kubectl apply -f -'
             }
         }
     }
